@@ -45,7 +45,7 @@ func (i *InMemoryStorageEngine) GetAll(keys [][]byte, transform store.TransformF
 }
 
 func (i *InMemoryStorageEngine) Put(key []byte, versioned *versioning.Versioned[[]byte], transform store.TransformFunction) error {
-	if store.IsValidKey(key) {
+	if !store.IsValidKey(key) {
 		return store.ErrInvalidKey
 	}
 	keyStr := store.BytesToString(key)

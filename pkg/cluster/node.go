@@ -9,7 +9,7 @@ type Node struct {
 	SerialVersion int
 	Id            int
 	Host          string
-	HttpPort      int
+	GrpcPort      int
 	SocketPort    int
 	AdminPort     int
 	ZoneId        int
@@ -19,13 +19,13 @@ type Node struct {
 
 type NodeOptions func(node *Node)
 
-func NewNode(id int, host string, httpPort, socketPort, adminPort int, partitions []int, opts ...NodeOptions) *Node {
+func NewNode(id int, host string, grpcPort, socketPort, adminPort int, partitions []int, opts ...NodeOptions) *Node {
 
 	node := &Node{
 		SerialVersion: 1,
 		Id:            id,
 		Host:          host,
-		HttpPort:      httpPort,
+		GrpcPort:      grpcPort,
 		SocketPort:    socketPort,
 		AdminPort:     adminPort,
 		ZoneId:        0,
@@ -48,8 +48,8 @@ func (n *Node) NumberPartitions() int {
 	return len(n.Partitions)
 }
 
-func (n *Node) HttpUrl() string {
-	return fmt.Sprintf("http://%s:%d", n.Host, n.HttpPort)
+func (n *Node) GrpcUrl() string {
+	return fmt.Sprintf("tcp://%s:%d", n.Host, n.GrpcPort)
 }
 
 func (n *Node) SocketUrl() string {
@@ -72,7 +72,7 @@ func (n *Node) HasSameState(other *Node) bool {
 		return false
 	}
 
-	if n.HttpPort != other.HttpPort {
+	if n.GrpcPort != other.GrpcPort {
 		return false
 	}
 
