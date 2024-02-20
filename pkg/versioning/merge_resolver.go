@@ -1,14 +1,14 @@
 package versioning
 
-type Merger[T any] interface {
-	Merge(t1, t2 T) T
+type Merger interface {
+	Merge(t1, t2 []byte) []byte
 }
 
 type MergeResolver[T any] struct {
-	Merger Merger[T]
+	Merger Merger
 }
 
-func (mr *MergeResolver[T]) ResolveConflicts(items []*Versioned[T]) []*Versioned[T] {
+func (mr *MergeResolver[T]) ResolveConflicts(items []*Versioned) []*Versioned {
 
 	if len(items) <= 1 {
 		return items
@@ -22,7 +22,7 @@ func (mr *MergeResolver[T]) ResolveConflicts(items []*Versioned[T]) []*Versioned
 		merged = mr.Merger.Merge(merged, current.Contents)
 		clock = clock.Merge(current.Version)
 	}
-	return []*Versioned[T]{
+	return []*Versioned{
 		{
 			clock,
 			merged,

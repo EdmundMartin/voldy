@@ -1,21 +1,41 @@
 package versioning
 
-type Versioned[T any] struct {
+import "bytes"
+
+type Versioned struct {
 	Version  *VectorClock
-	Contents T
+	Contents []byte
 }
 
-func NewVersionedBytes(contents []byte, version *VectorClock) *Versioned[[]byte] {
+func NewVersionedBytes(contents []byte, version *VectorClock) *Versioned {
 	if version == nil {
 		version = NewEmptyClock()
 	}
-	return &Versioned[[]byte]{
+	return &Versioned{
 		Version:  version,
 		Contents: contents,
 	}
 }
 
-func (v *Versioned[T]) HappenedBefore(other *Versioned[T]) (int, error) {
+func (v *Versioned) VersionedToBytes() []byte {
+	buf := bytes.Buffer{}
+	sizeContents := len(v.Contents)
+	buf.Write(uint16ToBytes(uint16(sizeContents)))
+	buf.Write(v.Contents)
+	buf.Write(v.Version.ToBytes())
+	return buf.Bytes()
+}
+
+func VersionedFromBytes(byteArr []byte) *Versioned {
+	v := &Versioned{}
+	sizeContents := readUint16(byteArr)
+	endOffset := 2 + sizeContents
+	v.Contents = byteArr[2:endOffset]
+	v.Version = VectorClockFromBytes(byteArr[endOffset:])
+	return v
+}
+
+func (v *Versioned) HappenedBefore(other *Versioned) (int, error) {
 	result, err := v.Version.Compare(other.Version)
 	if err != nil {
 		return 0, err
@@ -29,7 +49,7 @@ func (v *Versioned[T]) HappenedBefore(other *Versioned[T]) (int, error) {
 	return 0, nil
 }
 
-type VersionedBytes []*Versioned[[]byte]
+type VersionedBytes []*Versioned
 
 func (v VersionedBytes) Len() int {
 	return len(v)

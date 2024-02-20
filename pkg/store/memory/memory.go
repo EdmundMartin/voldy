@@ -10,7 +10,7 @@ import (
 type InMemoryStorageEngine struct {
 	Name    string
 	NodeId  int
-	storage map[string][]*versioning.Versioned[[]byte]
+	storage map[string][]*versioning.Versioned
 	clock   *versioning.VectorClock
 	mu      sync.RWMutex
 }
@@ -19,25 +19,25 @@ func NewInMemoryStorageEngine(name string, nodeId int) *InMemoryStorageEngine {
 	return &InMemoryStorageEngine{
 		Name:    name,
 		NodeId:  nodeId,
-		storage: make(map[string][]*versioning.Versioned[[]byte]),
+		storage: make(map[string][]*versioning.Versioned),
 		mu:      sync.RWMutex{},
 		clock:   versioning.NewEmptyClock(),
 	}
 }
 
-func (i *InMemoryStorageEngine) Get(key []byte, transform store.TransformFunction) ([]*versioning.Versioned[[]byte], error) {
+func (i *InMemoryStorageEngine) Get(key []byte, transform store.TransformFunction) ([]*versioning.Versioned, error) {
 	if !store.IsValidKey(key) {
 		return nil, store.ErrInvalidKey
 	}
 	results, ok := i.storage[store.BytesToString(key)]
 	if !ok {
-		return []*versioning.Versioned[[]byte]{}, nil
+		return []*versioning.Versioned{}, nil
 	}
 	return results, nil
 }
 
-func (i *InMemoryStorageEngine) GetAll(keys [][]byte, transform store.TransformFunction) (map[string][]*versioning.Versioned[[]byte], error) {
-	result := map[string][]*versioning.Versioned[[]byte]{}
+func (i *InMemoryStorageEngine) GetAll(keys [][]byte, transform store.TransformFunction) (map[string][]*versioning.Versioned, error) {
+	result := map[string][]*versioning.Versioned{}
 	for _, k := range keys {
 		res, err := i.Get(k, transform)
 		if err != nil {
@@ -49,7 +49,7 @@ func (i *InMemoryStorageEngine) GetAll(keys [][]byte, transform store.TransformF
 	return result, nil
 }
 
-func (i *InMemoryStorageEngine) Put(key []byte, versioned *versioning.Versioned[[]byte], transform store.TransformFunction) error {
+func (i *InMemoryStorageEngine) Put(key []byte, versioned *versioning.Versioned, transform store.TransformFunction) error {
 	if !store.IsValidKey(key) {
 		return store.ErrInvalidKey
 	}
@@ -62,12 +62,12 @@ func (i *InMemoryStorageEngine) Put(key []byte, versioned *versioning.Versioned[
 	keyStr := store.BytesToString(key)
 	result, ok := i.storage[keyStr]
 	if !ok {
-		i.storage[store.BytesToString(key)] = []*versioning.Versioned[[]byte]{
+		i.storage[store.BytesToString(key)] = []*versioning.Versioned{
 			versioned,
 		}
 		return nil
 	}
-	var itemsToKeep []*versioning.Versioned[[]byte]
+	var itemsToKeep []*versioning.Versioned
 	for _, item := range result {
 		occurred, err := versioned.Version.Compare(item.Version)
 		if err != nil {
@@ -104,7 +104,7 @@ func (i *InMemoryStorageEngine) Delete(key []byte, version *versioning.VectorClo
 
 	itemDeleted := false
 
-	var retained []*versioning.Versioned[[]byte]
+	var retained []*versioning.Versioned
 	for _, item := range values {
 		occurred, err := item.Version.Compare(version)
 		if err != nil {
@@ -179,7 +179,7 @@ func (i *InMemoryStorageEngine) KeysForPartition(partition int) ([][]byte, error
 func (i *InMemoryStorageEngine) Truncate() {
 	i.mu.Lock()
 	defer i.mu.Unlock()
-	i.storage = map[string][]*versioning.Versioned[[]byte]{}
+	i.storage = map[string][]*versioning.Versioned{}
 }
 
 func (i *InMemoryStorageEngine) IsPartitionAware() bool {

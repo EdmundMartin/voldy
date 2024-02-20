@@ -2,7 +2,7 @@ package versioning
 
 type TimeBasedResolver[T any] struct{}
 
-func (t TimeBasedResolver[T]) ResolveConflicts(items []*Versioned[T]) []*Versioned[T] {
+func (t TimeBasedResolver[T]) ResolveConflicts(items []*Versioned) []*Versioned {
 	if len(items) <= 1 {
 		return items
 	}
@@ -17,11 +17,11 @@ func (t TimeBasedResolver[T]) ResolveConflicts(items []*Versioned[T]) []*Version
 		}
 		maxClock = maxClock.Merge(clock)
 	}
-	maxClockVersioned := &Versioned[T]{
+	maxClockVersioned := &Versioned{
 		Version:  maxClock,
 		Contents: maxItem.Contents,
 	}
-	return []*Versioned[T]{
+	return []*Versioned{
 		maxClockVersioned,
 	}
 }
