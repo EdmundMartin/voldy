@@ -18,6 +18,7 @@ type GRPCServer struct {
 	cluster       *cluster.Cluster
 	storageEngine store.StorageEngine
 	strategy      routing.Strategy
+	ourNode       *cluster.Node
 	otherServers  map[*cluster.Node]protocol.VoldyClient
 	protocol.UnimplementedVoldyServer
 }
@@ -43,15 +44,13 @@ func (g *GRPCServer) Get(ctx context.Context, request *protocol.GetRequest) (*pr
 			results = append(results, ver...)
 		}
 	}
-	// TODO - Pick highest version
 	if len(results) == 0 {
 		return &protocol.GetResponse{
 			Key:     request.Key,
 			Message: []byte{},
 		}, nil
 	}
-
-	result := results[0]
+	result := results[len(results)-1]
 
 	return &protocol.GetResponse{
 		Key:     request.Key,
@@ -107,6 +106,7 @@ func NewGRPCServer(config GRPCServerConfig, currentCluster *cluster.Cluster) (*G
 	for _, node := range server.cluster.NodesById {
 		allNodes = append(allNodes, node)
 		if config.Host == node.Host && config.Port == node.GrpcPort {
+			server.ourNode = node
 			continue
 		}
 		// TODO - Full dial of host and port
@@ -119,14 +119,14 @@ func NewGRPCServer(config GRPCServerConfig, currentCluster *cluster.Cluster) (*G
 		server.otherServers[node] = client
 	}
 	// TODO - Make strategy configurable
-	strat, err := routing.NewConsistentRoutingStrategy(allNodes, 1)
+	strat, err := routing.NewConsistentRoutingStrategy(allNodes, 0)
 	if err != nil {
 		return nil, err
 	}
 	server.strategy = strat
 
 	// TODO - Make storage engine configurable
-	server.storageEngine = memory.NewInMemoryStorageEngine("Test")
+	server.storageEngine = memory.NewInMemoryStorageEngine("Test", server.ourNode.Id)
 
 	return server, nil
 }

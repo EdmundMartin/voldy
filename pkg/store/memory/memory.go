@@ -2,21 +2,26 @@ package memory
 
 import (
 	"sync"
+	"time"
 	"voldy/pkg/store"
 	"voldy/pkg/versioning"
 )
 
 type InMemoryStorageEngine struct {
 	Name    string
+	NodeId  int
 	storage map[string][]*versioning.Versioned[[]byte]
+	clock   *versioning.VectorClock
 	mu      sync.RWMutex
 }
 
-func NewInMemoryStorageEngine(name string) *InMemoryStorageEngine {
+func NewInMemoryStorageEngine(name string, nodeId int) *InMemoryStorageEngine {
 	return &InMemoryStorageEngine{
 		Name:    name,
+		NodeId:  nodeId,
 		storage: make(map[string][]*versioning.Versioned[[]byte]),
 		mu:      sync.RWMutex{},
+		clock:   versioning.NewEmptyClock(),
 	}
 }
 
@@ -48,6 +53,12 @@ func (i *InMemoryStorageEngine) Put(key []byte, versioned *versioning.Versioned[
 	if !store.IsValidKey(key) {
 		return store.ErrInvalidKey
 	}
+	// TODO - Client should present us a version based on the read. We then increment that clock as opposed to our
+	// own clock.
+	i.clock = i.clock.Clone()
+	i.clock.IncrementVersion(i.NodeId, time.Now().UnixMilli())
+	versioned.Version = i.clock
+
 	keyStr := store.BytesToString(key)
 	result, ok := i.storage[keyStr]
 	if !ok {
@@ -58,7 +69,7 @@ func (i *InMemoryStorageEngine) Put(key []byte, versioned *versioning.Versioned[
 	}
 	var itemsToKeep []*versioning.Versioned[[]byte]
 	for _, item := range result {
-		occurred, err := item.Version.Compare(versioned.Version)
+		occurred, err := versioned.Version.Compare(item.Version)
 		if err != nil {
 			return err
 		}

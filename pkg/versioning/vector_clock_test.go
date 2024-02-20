@@ -3,6 +3,7 @@ package versioning
 import (
 	"github.com/stretchr/testify/assert"
 	"testing"
+	"time"
 )
 
 func getClock(nodes ...int) *VectorClock {
@@ -57,6 +58,33 @@ func TestVectorClock_Compare(t *testing.T) {
 	result, err = getClock(1, 2, 2, 3).Compare(getClock(2, 2))
 	assert.NoError(t, err)
 	assert.Equal(t, AFTER, result)
+}
+
+func TestVectorClock_CompareVersion(t *testing.T) {
+
+	sameTime := time.Now().Add(-time.Minute).UnixMilli()
+	clockOne := &VectorClock{
+		SerialVersionID: 1,
+		versionMap:      map[uint16]uint64{1: 10},
+		timestamp:       sameTime,
+	}
+
+	clockTwo := &VectorClock{
+		SerialVersionID: 1,
+		versionMap:      map[uint16]uint64{1: 10},
+		timestamp:       sameTime,
+	}
+
+	res, err := clockOne.Compare(clockTwo)
+	assert.NoError(t, err)
+	assert.Equal(t, BEFORE, res)
+
+	err = clockOne.IncrementVersion(1, time.Now().UnixMilli())
+	assert.NoError(t, err)
+
+	res, err = clockOne.Compare(clockTwo)
+	assert.NoError(t, err)
+	assert.Equal(t, AFTER, res)
 }
 
 func TestVectorClock_ToBytes(t *testing.T) {

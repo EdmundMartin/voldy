@@ -16,6 +16,20 @@ type VectorClock struct {
 	timestamp       int64
 }
 
+func (v *VectorClock) Clone() *VectorClock {
+	clone := &VectorClock{SerialVersionID: 1,
+		timestamp:  v.timestamp,
+		versionMap: make(map[uint16]uint64, len(v.versionMap)),
+	}
+	clone.SerialVersionID = 1
+	clone.timestamp = v.timestamp
+
+	for k, v := range v.versionMap {
+		clone.versionMap[k] = v
+	}
+	return clone
+}
+
 func (v *VectorClock) Compare(other *VectorClock) (Occurred, error) {
 	if v == nil || other == nil {
 		return BEFORE, errors.New("cant compare null clocks")
@@ -50,6 +64,11 @@ func (v *VectorClock) Compare(other *VectorClock) (Occurred, error) {
 		}
 	}
 
+	/*
+		This is the case where they are equal. Consciously return BEFORE,
+		that the we would throw back an ObsoleteVersionException for online
+		writes with the same clock.
+	*/
 	if !vBigger && !otherBigger {
 		return BEFORE, nil
 	}

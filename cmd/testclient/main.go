@@ -26,6 +26,14 @@ func main() {
 	fmt.Println(response)
 	fmt.Println(err)
 
+	response, err = srv.Put(context.Background(), &protocol.PutRequest{
+		Key:   []byte("Katie"),
+		Value: []byte("Is Good"),
+	})
+
+	fmt.Println(response)
+	fmt.Println(err)
+
 	resp, err := srv.Get(context.Background(), &protocol.GetRequest{
 		Key: []byte("Katie"),
 	})
