@@ -15,13 +15,14 @@ message GetRequest {
 
 message GetResponse {
   bytes key = 1;
-  bytes message = 2;
+  bytes value = 2;
   bytes version = 3;
 }
 
 message PutRequest {
   bytes key = 1;
   bytes value = 2;
+  bytes version = 3;
 }
 
 message PutResponse {

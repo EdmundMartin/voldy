@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"google.golang.org/grpc"
 	"net"
+	"time"
 	"voldy/pkg/cluster"
 	"voldy/pkg/protocol"
 	"voldy/pkg/routing"
@@ -33,7 +34,7 @@ func (g *GRPCServer) Get(ctx context.Context, request *protocol.GetRequest) (*pr
 
 	nodes := g.strategy.RouteRequest(request.Key)
 
-	var results []*versioning.Versioned[[]byte]
+	var results []*versioning.Versioned
 	for _, node := range nodes {
 		if g.Config.Host == node.Host && g.Config.Port == node.GrpcPort {
 			ver, err := g.storageEngine.Get(request.Key, nil)
@@ -46,15 +47,16 @@ func (g *GRPCServer) Get(ctx context.Context, request *protocol.GetRequest) (*pr
 	}
 	if len(results) == 0 {
 		return &protocol.GetResponse{
-			Key:     request.Key,
-			Message: []byte{},
+			Key:   request.Key,
+			Value: []byte{},
 		}, nil
 	}
+
 	result := results[len(results)-1]
 
 	return &protocol.GetResponse{
 		Key:     request.Key,
-		Message: result.Contents,
+		Value:   result.Contents,
 		Version: result.Version.ToBytes(),
 	}, nil
 }
@@ -62,9 +64,14 @@ func (g *GRPCServer) Get(ctx context.Context, request *protocol.GetRequest) (*pr
 func (g *GRPCServer) Put(ctx context.Context, request *protocol.PutRequest) (*protocol.PutResponse, error) {
 	nodes := g.strategy.RouteRequest(request.Key)
 
+	vectorClock := versioning.VectorClockFromBytes(request.Version)
+	err := vectorClock.IncrementVersion(g.ourNode.Id, time.Now().UnixMilli())
+	if err != nil {
+		return nil, err
+	}
 	for _, node := range nodes {
 		if g.Config.Host == node.Host && g.Config.Port == node.GrpcPort {
-			err := g.storageEngine.Put(request.Key, versioning.NewVersionedBytes(request.Value, nil), nil)
+			err := g.storageEngine.Put(request.Key, versioning.NewVersionedBytes(request.Value, vectorClock), nil)
 			if err != nil {
 				return nil, err
 			}

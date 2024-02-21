@@ -2,7 +2,6 @@ package memory
 
 import (
 	"sync"
-	"time"
 	"voldy/pkg/store"
 	"voldy/pkg/versioning"
 )
@@ -25,6 +24,7 @@ func NewInMemoryStorageEngine(name string, nodeId int) *InMemoryStorageEngine {
 	}
 }
 
+// TODO - Implment a Consistent GET method on the cluster
 func (i *InMemoryStorageEngine) Get(key []byte, transform store.TransformFunction) ([]*versioning.Versioned, error) {
 	if !store.IsValidKey(key) {
 		return nil, store.ErrInvalidKey
@@ -49,15 +49,11 @@ func (i *InMemoryStorageEngine) GetAll(keys [][]byte, transform store.TransformF
 	return result, nil
 }
 
+// TODO - Put should always be strongly consistent
 func (i *InMemoryStorageEngine) Put(key []byte, versioned *versioning.Versioned, transform store.TransformFunction) error {
 	if !store.IsValidKey(key) {
 		return store.ErrInvalidKey
 	}
-	// TODO - Client should present us a version based on the read. We then increment that clock as opposed to our
-	// own clock.
-	i.clock = i.clock.Clone()
-	i.clock.IncrementVersion(i.NodeId, time.Now().UnixMilli())
-	versioned.Version = i.clock
 
 	keyStr := store.BytesToString(key)
 	result, ok := i.storage[keyStr]

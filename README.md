@@ -14,4 +14,4 @@ protoc --go_out=. --go_opt=paths=source_relative \
 * Fix usage of versioning - introduce client which supports - get prior to put operations
 * Read-repair implementation
 * Postgres backed storage engine
-* Look at implementing full Dynamo - HashKey/Sort key - should be easy with B-tree storage engine.
+* Look at implementing full DynamoDB API - HashKey/Sort key - should be easy with B-tree storage engine.

@@ -3,41 +3,28 @@ package main
 import (
 	"context"
 	"fmt"
-	"google.golang.org/grpc"
 	"log"
-	"voldy/pkg/protocol"
+	"voldy/pkg/client"
 )
 
 func main() {
-	conn, err := grpc.Dial(":9000", grpc.WithInsecure())
+
+	cl, err := client.NewClient(":9000")
 	if err != nil {
-		log.Fatalf("did not connect: %s", err)
+		log.Fatal(err)
+		return
 	}
 
-	defer conn.Close()
-
-	srv := protocol.NewVoldyClient(conn)
-
-	response, err := srv.Put(context.Background(), &protocol.PutRequest{
-		Key:   []byte("Katie"),
-		Value: []byte("Is Great"),
-	})
-
-	fmt.Println(response)
+	err = cl.Put(context.Background(), []byte("Katie"), []byte("Is Great"))
 	fmt.Println(err)
 
-	response, err = srv.Put(context.Background(), &protocol.PutRequest{
-		Key:   []byte("Katie"),
-		Value: []byte("Is Good"),
-	})
+	err = cl.Put(context.Background(), []byte("Katie"), []byte("Is Good"))
 
-	fmt.Println(response)
 	fmt.Println(err)
 
-	resp, err := srv.Get(context.Background(), &protocol.GetRequest{
-		Key: []byte("Katie"),
-	})
+	resp, err := cl.Get(context.Background(), []byte("Katie"))
 
-	fmt.Println(resp)
+	fmt.Println(string(resp.Key))
+	fmt.Println(string(resp.Value))
 	fmt.Println(err)
 }
