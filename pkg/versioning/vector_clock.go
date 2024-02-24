@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"math"
 	"time"
 )
@@ -14,6 +15,16 @@ type VectorClock struct {
 	SerialVersionID int
 	versionMap      map[uint16]uint64
 	timestamp       int64
+}
+
+func (v *VectorClock) String() string {
+	buf := bytes.Buffer{}
+
+	for k, v := range v.versionMap {
+		buf.WriteString(fmt.Sprintf("K=%d,V=%d\n", k, v))
+	}
+	buf.WriteString(fmt.Sprintf("timestamp: %d\n", v.timestamp))
+	return buf.String()
 }
 
 func (v *VectorClock) Clone() *VectorClock {
@@ -100,7 +111,7 @@ func (v *VectorClock) Merge(clock *VectorClock) *VectorClock {
 func NewEmptyClock() *VectorClock {
 	return &VectorClock{
 		SerialVersionID: 1,
-		versionMap:      map[uint16]uint64{},
+		versionMap:      make(map[uint16]uint64),
 		timestamp:       time.Now().UnixMilli(),
 	}
 }
@@ -134,13 +145,18 @@ func (v *VectorClock) GetMaxVersion() uint64 {
 	return maxVersion
 }
 
+type ClockEntry struct {
+	Key   uint16
+	Value uint64
+}
+
 func (v *VectorClock) GetEntries() ([]*ClockEntry, error) {
 	var result []*ClockEntry
 
 	for key, val := range v.versionMap {
-		clockEntry, err := NewClockEntry(key, val)
-		if err != nil {
-			return nil, err
+		clockEntry := &ClockEntry{
+			Key:   key,
+			Value: val,
 		}
 		result = append(result, clockEntry)
 	}
@@ -155,14 +171,14 @@ func (v *VectorClock) CopyFromVectorClock(vc *VectorClock) error {
 		return err
 	}
 	for _, entry := range entries {
-		v.versionMap[entry.NodeId] = entry.Version
+		v.versionMap[entry.Key] = entry.Value
 	}
 	return nil
 }
 
 func (v *VectorClock) Incremented(nodeId int, timeMillis int64) (*VectorClock, error) {
 
-	var outputVersionMap map[uint16]uint64
+	outputVersionMap := make(map[uint16]uint64)
 	for k, v := range v.versionMap {
 		outputVersionMap[k] = v
 	}

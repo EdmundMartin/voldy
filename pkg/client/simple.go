@@ -28,38 +28,38 @@ func NewClient(host string) (*SimpleClient, error) {
 	return c, nil
 }
 
-func (c *SimpleClient) Get(ctx context.Context, key []byte) (*GetResponse, error) {
-	res, err := c.client.Get(ctx, &protocol.GetRequest{Key: key})
+func (c *SimpleClient) CreateTable(ctx context.Context, tableName string) error {
+	if _, err := c.client.CreateTable(ctx, &protocol.CreateTableRequest{TableName: []byte(tableName)}); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (c *SimpleClient) GetKey(ctx context.Context, tableName string, hashKey, sortKey []byte) (*versioning.Versioned, error) {
+
+	res, err := c.client.GetKey(ctx, &protocol.GetKeyRequest{
+		TableName: []byte(tableName),
+		HashKey:   hashKey,
+		SortKey:   sortKey,
+	})
 	if err != nil {
 		return nil, err
 	}
-	response := &GetResponse{
-		Key:   res.Key,
-		Value: res.Value,
-	}
-	if len(res.Version) != 0 {
-		response.Version = versioning.VectorClockFromBytes(res.Version)
-	}
 
-	return response, nil
+	return &versioning.Versioned{
+		Version:  versioning.VectorClockFromBytes(res.Version),
+		Contents: res.Value,
+	}, nil
 }
 
-func (c *SimpleClient) Put(ctx context.Context, key []byte, value []byte) error {
+func (c *SimpleClient) Put(ctx context.Context, tableName string, hashKey, sortKey, value []byte) error {
 
-	result, err := c.Get(ctx, key)
-	if err != nil {
-		return nil
-	}
-	var vectorClock *versioning.VectorClock
-	if result.Version == nil {
-		vectorClock = versioning.NewEmptyClock()
-	} else {
-		vectorClock = result.Version
-	}
-	_, err = c.client.Put(ctx, &protocol.PutRequest{
-		Key:     key,
-		Value:   value,
-		Version: vectorClock.ToBytes(),
+	_, err := c.client.Put(ctx, &protocol.PutRequest{
+		TableName: []byte(tableName),
+		HashKey:   hashKey,
+		SortKey:   sortKey,
+		Value:     value,
+		Version:   nil,
 	})
 	return err
 }

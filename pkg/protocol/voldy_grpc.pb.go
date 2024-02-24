@@ -22,7 +22,9 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type VoldyClient interface {
-	Get(ctx context.Context, in *GetRequest, opts ...grpc.CallOption) (*GetResponse, error)
+	CreateTable(ctx context.Context, in *CreateTableRequest, opts ...grpc.CallOption) (*CreateTableResponse, error)
+	GetHashKey(ctx context.Context, in *GetHashKeyRequest, opts ...grpc.CallOption) (*GetResponse, error)
+	GetKey(ctx context.Context, in *GetKeyRequest, opts ...grpc.CallOption) (*GetResponse, error)
 	Put(ctx context.Context, in *PutRequest, opts ...grpc.CallOption) (*PutResponse, error)
 }
 
@@ -34,9 +36,27 @@ func NewVoldyClient(cc grpc.ClientConnInterface) VoldyClient {
 	return &voldyClient{cc}
 }
 
-func (c *voldyClient) Get(ctx context.Context, in *GetRequest, opts ...grpc.CallOption) (*GetResponse, error) {
+func (c *voldyClient) CreateTable(ctx context.Context, in *CreateTableRequest, opts ...grpc.CallOption) (*CreateTableResponse, error) {
+	out := new(CreateTableResponse)
+	err := c.cc.Invoke(ctx, "/Voldy/CreateTable", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *voldyClient) GetHashKey(ctx context.Context, in *GetHashKeyRequest, opts ...grpc.CallOption) (*GetResponse, error) {
 	out := new(GetResponse)
-	err := c.cc.Invoke(ctx, "/Voldy/Get", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/Voldy/GetHashKey", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *voldyClient) GetKey(ctx context.Context, in *GetKeyRequest, opts ...grpc.CallOption) (*GetResponse, error) {
+	out := new(GetResponse)
+	err := c.cc.Invoke(ctx, "/Voldy/GetKey", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -56,7 +76,9 @@ func (c *voldyClient) Put(ctx context.Context, in *PutRequest, opts ...grpc.Call
 // All implementations must embed UnimplementedVoldyServer
 // for forward compatibility
 type VoldyServer interface {
-	Get(context.Context, *GetRequest) (*GetResponse, error)
+	CreateTable(context.Context, *CreateTableRequest) (*CreateTableResponse, error)
+	GetHashKey(context.Context, *GetHashKeyRequest) (*GetResponse, error)
+	GetKey(context.Context, *GetKeyRequest) (*GetResponse, error)
 	Put(context.Context, *PutRequest) (*PutResponse, error)
 	mustEmbedUnimplementedVoldyServer()
 }
@@ -65,8 +87,14 @@ type VoldyServer interface {
 type UnimplementedVoldyServer struct {
 }
 
-func (UnimplementedVoldyServer) Get(context.Context, *GetRequest) (*GetResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Get not implemented")
+func (UnimplementedVoldyServer) CreateTable(context.Context, *CreateTableRequest) (*CreateTableResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateTable not implemented")
+}
+func (UnimplementedVoldyServer) GetHashKey(context.Context, *GetHashKeyRequest) (*GetResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetHashKey not implemented")
+}
+func (UnimplementedVoldyServer) GetKey(context.Context, *GetKeyRequest) (*GetResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetKey not implemented")
 }
 func (UnimplementedVoldyServer) Put(context.Context, *PutRequest) (*PutResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Put not implemented")
@@ -84,20 +112,56 @@ func RegisterVoldyServer(s grpc.ServiceRegistrar, srv VoldyServer) {
 	s.RegisterService(&Voldy_ServiceDesc, srv)
 }
 
-func _Voldy_Get_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetRequest)
+func _Voldy_CreateTable_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateTableRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(VoldyServer).Get(ctx, in)
+		return srv.(VoldyServer).CreateTable(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/Voldy/Get",
+		FullMethod: "/Voldy/CreateTable",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(VoldyServer).Get(ctx, req.(*GetRequest))
+		return srv.(VoldyServer).CreateTable(ctx, req.(*CreateTableRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Voldy_GetHashKey_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetHashKeyRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(VoldyServer).GetHashKey(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/Voldy/GetHashKey",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(VoldyServer).GetHashKey(ctx, req.(*GetHashKeyRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Voldy_GetKey_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetKeyRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(VoldyServer).GetKey(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/Voldy/GetKey",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(VoldyServer).GetKey(ctx, req.(*GetKeyRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -128,8 +192,16 @@ var Voldy_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*VoldyServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "Get",
-			Handler:    _Voldy_Get_Handler,
+			MethodName: "CreateTable",
+			Handler:    _Voldy_CreateTable_Handler,
+		},
+		{
+			MethodName: "GetHashKey",
+			Handler:    _Voldy_GetHashKey_Handler,
+		},
+		{
+			MethodName: "GetKey",
+			Handler:    _Voldy_GetKey_Handler,
 		},
 		{
 			MethodName: "Put",

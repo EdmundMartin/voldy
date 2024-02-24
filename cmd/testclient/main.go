@@ -15,16 +15,17 @@ func main() {
 		return
 	}
 
-	err = cl.Put(context.Background(), []byte("Katie"), []byte("Is Great"))
-	fmt.Println(err)
+	ctx := context.Background()
+	cl.CreateTable(ctx, "TestTable")
 
-	err = cl.Put(context.Background(), []byte("Katie"), []byte("Is Good"))
+	err = cl.Put(ctx, "TestTable", []byte("Tx_101"), []byte("2022-02-24"), []byte("Hello Transaction"))
 
-	fmt.Println(err)
+	resp, err := cl.GetKey(ctx, "TestTable", []byte("Tx_101"), []byte("2022-02-24"))
 
-	resp, err := cl.Get(context.Background(), []byte("Katie"))
+	err = cl.Put(ctx, "TestTable", []byte("Tx_101"), []byte("2022-02-24"), []byte("Hello World"))
 
-	fmt.Println(string(resp.Key))
-	fmt.Println(string(resp.Value))
-	fmt.Println(err)
+	resp, err = cl.GetKey(ctx, "TestTable", []byte("Tx_101"), []byte("2022-02-24"))
+
+	fmt.Println(string(resp.Contents))
+	fmt.Println(resp.Version)
 }

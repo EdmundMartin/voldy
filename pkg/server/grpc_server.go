@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"google.golang.org/grpc"
 	"net"
@@ -10,7 +11,7 @@ import (
 	"voldy/pkg/protocol"
 	"voldy/pkg/routing"
 	"voldy/pkg/store"
-	"voldy/pkg/store/memory"
+	"voldy/pkg/store/bengine"
 	"voldy/pkg/versioning"
 )
 
@@ -30,24 +31,39 @@ type GRPCServerConfig struct {
 	Replicas int
 }
 
-func (g *GRPCServer) Get(ctx context.Context, request *protocol.GetRequest) (*protocol.GetResponse, error) {
+func (g *GRPCServer) CreateTable(ctx context.Context, request *protocol.CreateTableRequest) (*protocol.CreateTableResponse, error) {
 
-	nodes := g.strategy.RouteRequest(request.Key)
+	nodes := g.strategy.GetNodes()
+	for _, node := range nodes {
+		if g.Config.Host == node.Host && g.Config.Port == node.GrpcPort {
+			if err := g.storageEngine.CreateTable(request.TableName); err != nil {
+				return nil, err
+			}
+		}
+		// TODO - Communicate with other nodes -- all nodes most accept a create table request
+	}
+	return &protocol.CreateTableResponse{TableName: request.TableName}, nil
+}
+
+// TODO - Implement read-repair
+func (g *GRPCServer) GetKey(ctx context.Context, request *protocol.GetKeyRequest) (*protocol.GetResponse, error) {
+
+	nodes := g.strategy.RouteRequest(request.HashKey)
 
 	var results []*versioning.Versioned
 	for _, node := range nodes {
 		if g.Config.Host == node.Host && g.Config.Port == node.GrpcPort {
-			ver, err := g.storageEngine.Get(request.Key, nil)
+			ver, err := g.storageEngine.Get(request.TableName, request.HashKey, request.SortKey)
 			if err != nil {
 				// TODO - Maybe we should gather and ignore errors
 				return nil, err
 			}
-			results = append(results, ver...)
+			results = append(results, ver)
 		}
 	}
 	if len(results) == 0 {
 		return &protocol.GetResponse{
-			Key:   request.Key,
+			Key:   request.HashKey,
 			Value: []byte{},
 		}, nil
 	}
@@ -55,33 +71,55 @@ func (g *GRPCServer) Get(ctx context.Context, request *protocol.GetRequest) (*pr
 	result := results[len(results)-1]
 
 	return &protocol.GetResponse{
-		Key:     request.Key,
+		Key:     request.HashKey,
 		Value:   result.Contents,
 		Version: result.Version.ToBytes(),
 	}, nil
 }
 
 func (g *GRPCServer) Put(ctx context.Context, request *protocol.PutRequest) (*protocol.PutResponse, error) {
-	nodes := g.strategy.RouteRequest(request.Key)
+	nodes := g.strategy.RouteRequest(request.HashKey)
 
-	vectorClock := versioning.VectorClockFromBytes(request.Version)
-	err := vectorClock.IncrementVersion(g.ourNode.Id, time.Now().UnixMilli())
+	res, err := g.storageEngine.Get(request.TableName, request.HashKey, request.SortKey)
 	if err != nil {
+		return nil, err
+	}
+	var vectorClock *versioning.VectorClock
+	if res == nil {
+		vectorClock = versioning.NewEmptyClock()
+		if err := vectorClock.IncrementVersion(g.ourNode.Id, time.Now().Unix()); err != nil {
+			return nil, err
+		}
+	} else {
+		vectorClock = res.Version
+	}
+	if request.Version != nil {
+		otherClock := versioning.VectorClockFromBytes(request.Version)
+		occurred, err := vectorClock.Compare(otherClock)
+		if err != nil {
+			return nil, err
+		}
+		// we have obsolete version stored on this node we should increment the greater vector clock
+		if occurred == versioning.AFTER {
+			return nil, errors.New("obsolete version of object presented for saving")
+		}
+	}
+	if err := vectorClock.IncrementVersion(1, time.Now().Unix()); err != nil {
 		return nil, err
 	}
 	for _, node := range nodes {
 		if g.Config.Host == node.Host && g.Config.Port == node.GrpcPort {
-			err := g.storageEngine.Put(request.Key, versioning.NewVersionedBytes(request.Value, vectorClock), nil)
+			err := g.storageEngine.Put(request.TableName, request.HashKey, request.SortKey, versioning.NewVersionedBytes(request.Value, vectorClock))
 			if err != nil {
 				return nil, err
 			}
 		} else {
-			// TODO
+			// TODO Try and put on other servers - if we fail because of other version being hire - fail request
 			fmt.Println("Should attempt to send request to other server")
 		}
 	}
 	return &protocol.PutResponse{
-		Key:     request.Key,
+		Key:     request.HashKey,
 		Value:   request.Value,
 		Version: nil, // TODO - Remove
 	}, nil
@@ -133,7 +171,11 @@ func NewGRPCServer(config GRPCServerConfig, currentCluster *cluster.Cluster) (*G
 	server.strategy = strat
 
 	// TODO - Make storage engine configurable
-	server.storageEngine = memory.NewInMemoryStorageEngine("Test", server.ourNode.Id)
+	engine, err := bengine.NewStorageEngine("Demo.db", []byte("#"))
+	if err != nil {
+		return nil, err
+	}
+	server.storageEngine = engine
 
 	return server, nil
 }

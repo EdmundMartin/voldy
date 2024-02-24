@@ -49,17 +49,17 @@ func (v *Versioned) HappenedBefore(other *Versioned) (int, error) {
 	return 0, nil
 }
 
-type VersionedBytes []*Versioned
+type VersionedCollection []*Versioned
 
-func (v VersionedBytes) Len() int {
+func (v VersionedCollection) Len() int {
 	return len(v)
 }
 
-func (v VersionedBytes) Less(i, j int) bool {
+func (v VersionedCollection) Less(i, j int) bool {
 	res, _ := v[i].HappenedBefore(v[j])
 	return res < 0
 }
 
-func (v VersionedBytes) Swap(i, j int) {
+func (v VersionedCollection) Swap(i, j int) {
 	v[i], v[j] = v[j], v[i]
 }

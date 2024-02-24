@@ -4,13 +4,29 @@ option go_package = "pkg/protocol";
 
 
 service Voldy {
-
-  rpc Get(GetRequest) returns (GetResponse) {}
+  rpc CreateTable(CreateTableRequest) returns (CreateTableResponse) {}
+  rpc GetHashKey(GetHashKeyRequest) returns (GetResponse) {}
+  rpc GetKey(GetKeyRequest) returns (GetResponse) {}
   rpc Put(PutRequest) returns (PutResponse) {}
 }
 
-message GetRequest {
-  bytes key = 1;
+message CreateTableRequest {
+  bytes tableName = 1;
+}
+
+message CreateTableResponse {
+  bytes tableName = 1;
+}
+
+message GetHashKeyRequest {
+  bytes tableName = 1;
+  bytes key = 2;
+}
+
+message GetKeyRequest {
+  bytes tableName = 1;
+  bytes hashKey = 2;
+  bytes sortKey = 3;
 }
 
 message GetResponse {
@@ -20,9 +36,11 @@ message GetResponse {
 }
 
 message PutRequest {
-  bytes key = 1;
-  bytes value = 2;
-  bytes version = 3;
+  bytes tableName = 1;
+  bytes hashKey = 2;
+  bytes sortKey = 3;
+  bytes value = 4;
+  bytes version = 5;
 }
 
 message PutResponse {
