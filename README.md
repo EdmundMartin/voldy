@@ -14,3 +14,4 @@ protoc --go_out=. --go_opt=paths=source_relative \
 * Read-repair implementation
 * Postgres backed storage engine
 * Look at implementing full DynamoDB style API - HashKey/Sort key - should be easy with B-tree storage engine.
+* VectorClocks are easy but should consider Paxos
